@@ -24,17 +24,16 @@ jobs:
           mkdir -p cmdline-tools
           curl -sL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o cmdline-tools.zip
           unzip -q cmdline-tools.zip -d cmdline-tools
-          # The zip extracts a 'cmdline-tools' folder; move its contents up one level
-          mv cmdline-tools/cmdline-tools/* cmdline-tools/
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/cmdline-tools/* cmdline-tools/latest/
           rmdir cmdline-tools/cmdline-tools
-          # Add sdkmanager to PATH for subsequent steps
-          echo "$PWD/cmdline-tools/bin" >> $GITHUB_PATH
+          echo "$PWD/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "ANDROID_HOME=$PWD" >> $GITHUB_ENV
 
       - name: Accept licenses and install SDK packages
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses > /dev/null || true
+          sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       - name: Make scripts executable
         run: chmod +x make.sh gradlew
