@@ -19,20 +19,33 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Configure Android SDK
-        run: |
-          # Set both env vars to the same path (avoids the "different paths" error)
-          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-          # Add sdkmanager to PATH for later steps
-          echo "/usr/local/lib/android/sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
 
-      - name: Override SDK path via local.properties
+      - name: Prepare SDK paths for make.sh
         run: |
-          # local.properties takes precedence over ANDROID_HOME / ANDROID_SDK_ROOT.
-          # This guarantees Gradle uses the correct path regardless of env vars.
-          echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
-          cat local.properties  # verify
+          # Capture the real SDK location before make.sh overrides ANDROID_HOME
+          echo "SYSTEM_ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "SYSTEM_ANDROID_HOME=$ANDROID_HOME"   # verify in logs
+
+          # make.sh checks for ./cmdline-tools in the repo root.
+          # Symlink it to the system SDK's cmdline-tools/latest.
+          ln -sfn "$ANDROID_HOME/cmdline-tools/latest" ./cmdline-tools
+
+          # make.sh will later set ANDROID_HOME=$PWD/cmdline-tools.
+          # Set ANDROID_SDK_ROOT to the SAME path so Gradle sees no conflict.
+          echo "ANDROID_SDK_ROOT=$PWD/cmdline-tools" >> $GITHUB_ENV
+
+          # Ensure sdkmanager is on PATH for subsequent steps.
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+
+      - name: Force SDK path in local.properties
+        run: |
+          # local.properties overrides ANDROID_HOME / ANDROID_SDK_ROOT for Gradle.
+          echo "sdk.dir=${{ env.SYSTEM_ANDROID_HOME }}" > local.properties
+          cat local.properties   # verify
 
       - name: Make scripts executable
         run: chmod +x make.sh gradlew
